@@ -3,13 +3,15 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "engines": { "node": ">=22.18.0" },
+  "engines": {
+    "node": ">=22.18.0"
+  },
   "scripts": {
-    "dev": "tsx watch src/main.ts",
+    "dev": "npm run build && node dist/src/main.js",
     "build": "tsc -p tsconfig.build.json",
     "start": "node dist/src/main.js",
     "typecheck": "tsc --noEmit",
-    "openapi:export": "tsx scripts/export-openapi.ts",
+    "openapi:export": "npm run build && node dist/scripts/export-openapi.js",
     "generate:client": "orval --config orval.config.ts",
     "generate": "npm run openapi:export && npm run generate:client",
     "test": "vitest run",
@@ -40,6 +42,8 @@
     "supertest": "^7.1.0",
     "tsx": "^4.20.0",
     "typescript": "^6.0.0",
-    "vitest": "^4.0.0"
+    "vitest": "^4.0.0",
+    "@swc/core": "^1.13.0",
+    "unplugin-swc": "^1.5.1"
   }
 }
