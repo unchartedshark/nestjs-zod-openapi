@@ -60,7 +60,7 @@ orval.config.ts
 4. Runs Vitest service, REST, GraphQL and OpenAPI contract tests. The generated faker fixtures are parsed back through the original Zod response models.
 5. Compiles the NestJS app with `tsc`.
 
-The GitHub Actions workflow runs the same command on every push and pull request, on Node 24. Generated artifacts are excluded from git and regenerated on CI.
+GitHub Actions runs the same generation, Oxlint, TypeScript, Vitest, and build steps on every push and pull request, on Node 24. Generated artifacts are excluded from git and regenerated on CI.
 
 ## Error handling
 
@@ -69,6 +69,10 @@ REST failures are `application/problem+json` with named reusable `components.sch
 ## One important GraphQL distinction
 
 NestJS GraphQL code-first still needs decorated `@ObjectType()` and `@InputType()` types to define its executable schema. They live in `users.schema.ts` alongside the Zod models. **Zod is authoritative at runtime**, but the GraphQL declarations must be kept aligned. The tests exercise both sides to catch drift.
+
+## Architecture and code review
+
+See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the documentation-based design rationale, Standard Schema versus GraphQL metadata boundary, error response contracts, known limitations, and testing strategy. Oxlint enforces **no nested ternary operators**.
 
 ## Customisation
 

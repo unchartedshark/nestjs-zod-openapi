@@ -109,9 +109,27 @@ describe('GraphQL on the same Nest app', () => {
     expect(res.body.errors?.[0]?.extensions?.code).toBe('BAD_USER_INPUT');
     expect(res.body.errors?.[0]?.extensions?.issues).toEqual(expect.arrayContaining([expect.objectContaining({ pointer: '#/email' })]));
   });
+  it('exposes roles as a real GraphQL enum rather than a plain string', async () => {
+    const res = await request(app.getHttpServer()).post('/graphql').send({
+      query: '{ __type(name: "UserRole") { kind enumValues { name } } }',
+    });
+    expect(res.body.errors).toBeUndefined();
+    expect(res.body.data.__type.kind).toBe('ENUM');
+    expect(res.body.data.__type.enumValues).toEqual(
+      expect.arrayContaining([{ name: 'admin' }, { name: 'member' }]),
+    );
+  });
+
+  it('rejects unrecognised GraphQL role values before reaching the service', async () => {
+    const res = await request(app.getHttpServer()).post('/graphql').send({
+      query: 'query { users(input: { role: invalid }) { total } }',
+    });
+    expect(res.body.errors?.length).toBeGreaterThan(0);
+  });
+
   it('searches via the GraphQL resolver using the same service', async () => {
     const res = await request(app.getHttpServer()).post('/graphql')
-      .send({ query: 'query { users(input: { role: "admin", limit: 1 }) { total users { id email role } } }' });
+      .send({ query: 'query { users(input: { role: admin, limit: 1 }) { total users { id email role } } }' });
     expect(res.body.errors).toBeUndefined();
     expect(res.body.data.users.total).toBe(1);
   });

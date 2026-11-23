@@ -12,7 +12,16 @@ import { CreateUserSchema, SearchUsersSchema, UserSchema, UsersResultSchema } fr
 
 const OPENAPI_VERSION = '3.2.0';
 
-/** Generates the very same OpenAPI document used by Scalar, Orval and tests. */
+/**
+ * Generates the one OpenAPI 3.2 document used by Scalar, Orval and tests.
+ *
+ * Swagger discovers HTTP routes; `zod-openapi` converts Zod Standard Schema
+ * metadata into the input/output constraints. Explicitly registering named
+ * components allows every response decorator to reference the same model.
+ *
+ * @param app - The Nest application containing REST controllers.
+ * @returns A complete OpenAPI document including HTTP QUERY operations.
+ */
 export function createOpenApiDocument(app: INestApplication) {
   const config = new DocumentBuilder()
     .setTitle('NestJS Standard Schema REST + GraphQL')
@@ -37,8 +46,8 @@ export function createOpenApiDocument(app: INestApplication) {
   document.components ??= {};
   document.components.schemas ??= {};
 
-  // Explicit named output components. Avoid anonymous inline response models.
-  // Inputs are also explicitly registered to check downstream $ref resolution.
+  // Register both inputs and outputs by name; the $refs in the response
+  // decorators must always resolve, including application/problem+json.
   const schemas = [UserSchema, UsersResultSchema, CreateUserSchema, SearchUsersSchema, ...documentedSchemas];
   for (const schema of schemas) {
     const { components } = createSchema(schema, {
@@ -50,7 +59,12 @@ export function createOpenApiDocument(app: INestApplication) {
   return document;
 }
 
-/** Configures production and test apps identically. */
+/**
+ * Registers runtime validators, transport-aware errors, documentation, and UI.
+ *
+ * Production and tests use this exact entrypoint so integration tests exercise
+ * the same pipes/interceptors/filters and schema configuration.
+ */
 export function configureApp(app: INestApplication) {
   app.useGlobalPipes(new StandardSchemaValidationPipe({
     exceptionFactory: (issues) => new InputValidationError(mapIssuesToPointers(issues)),
