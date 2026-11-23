@@ -1,13 +1,13 @@
 import { Injectable } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import { UserAlreadyExistsError, UserNotFoundError } from './users.errors.js';
-import { type CreateUser, type SearchUsers, type User, UserSchema } from './users.schema.js';
+import type { CreateUser, SearchUsers, User } from './users.schema.js';
 
 /**
  * Stateless demonstration service: no database or network dependencies.
  *
  * Seed data includes an internal-only field on purpose so transport tests can
- * demonstrate that public Zod serialization never exposes private properties.
+ * demonstrate that REST Zod serialization and GraphQL field selection do not\n * expose private properties.
  * `create()` generates a result but does not persist it in the seed collection.
  */
 @Injectable()
@@ -59,6 +59,6 @@ export class UsersService {
       throw new UserAlreadyExistsError(input.email);
     }
 
-    return UserSchema.parse({ id: randomUUID(), ...input });
+    return { id: randomUUID(), ...input };
   }
 }

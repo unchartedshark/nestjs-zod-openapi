@@ -1,6 +1,6 @@
 # NestJS 12 · Zod 4 · OpenAPI 3.2 · GraphQL · HTTP QUERY
 
-A minimal REST + GraphQL server that uses **one set of Zod schemas** for validation, serialization and API documentation. All data is mocked by `UsersService`; there is no database or external API.
+A minimal REST + GraphQL server: **REST uses Zod Standard Schema and OpenAPI**; **GraphQL uses NestJS code-first types, native validation and custom domain errors**. Neither API requires validation from the other. All data is mocked by `UsersService`; there is no database or external API.
 
 **Requires Node 24** (Orval 8 needs Node 22.18+).
 
@@ -34,7 +34,7 @@ src/
     users.controller.ts  # REST GET, POST, RFC 10008 QUERY
     users.resolver.ts    # GraphQL queries and mutation
     users.service.ts     # static mock data and domain errors
-    users.schema.ts      # Zod models + thin GraphQL decorated types
+    users.schema.ts      # Zod contracts for REST and OpenAPI\n    users.graphql.ts     # Native NestJS code-first GraphQL types\n    users.types.ts       # Framework-neutral role values
     users.errors.ts      # domain exceptions shared by both transports
     users.module.ts
   problems/
@@ -42,8 +42,6 @@ src/
     api-exception.filter.ts  # HTTP problem+json vs GraphQL extensions
     api-response.decorator.ts
     input-validation.error.ts
-  graphql/
-    graphql-standard-schema.pipe.ts
   openapi.ts             # single OpenAPI document generator + Scalar
 scripts/export-openapi.ts
 orval.config.ts
@@ -64,11 +62,13 @@ GitHub Actions runs the same generation, Oxlint, TypeScript, Vitest, and build s
 
 ## Error handling
 
-REST failures are `application/problem+json` with named reusable `components.schemas` ($ref) and field-level validation issues (HTTP 422). GraphQL remains GraphQL: domain exceptions become typed `errors[].extensions.code` values; bad arguments use `BAD_USER_INPUT`. The global filter checks the transport rather than responding to GraphQL exceptions with HTTP Problem Details.
+REST failures are `application/problem+json` with named reusable `components.schemas` ($ref) and field-level validation issues (HTTP 422). GraphQL remains GraphQL: domain exceptions become typed `errors[].extensions.code` values; invalid field types, missing required fields, and bad enum values are handled by GraphQL itself (`GRAPHQL_VALIDATION_FAILED`). The global filter checks the transport rather than responding to GraphQL exceptions with HTTP Problem Details.
 
-## One important GraphQL distinction
+## GraphQL is deliberately independent of Zod
 
-NestJS GraphQL code-first still needs decorated `@ObjectType()` and `@InputType()` types to define its executable schema. They live in `users.schema.ts` alongside the Zod models. **Zod is authoritative at runtime**, but the GraphQL declarations must be kept aligned. The tests exercise both sides to catch drift.
+NestJS GraphQL code-first uses `@ObjectType()`, `@InputType()`, and `@Field()` in `users.graphql.ts`. Its own executable schema validates GraphQL arguments, applies defaults, and selects public response fields. There is **no GraphQL Standard Schema pipe**, and resolvers do not call `UserSchema.parse()`.
+
+The domain service and user-role values are shared, but GraphQL does not inherit REST-only Zod refinements such as email format or UUID structure. These are separate transport contracts by design. The tests verify native GraphQL input validation, defaults, enum handling, and custom domain errors.
 
 ## Architecture and code review
 
@@ -76,6 +76,6 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the documentation-based des
 
 ## Customisation
 
-The example problem type URIs use `example.test`; replace with permanent URI references belonging to your own API. The mock `create()` generates an object but does not persist it. The mock users intentionally contain `internalSecret`, which HTTP Zod serialization and GraphQL response parsing strip.
+The example problem type URIs use `example.test`; replace with permanent URI references belonging to your own API. The mock `create()` generates an object but does not persist it. The mock users intentionally contain `internalSecret`: REST Zod response serialization strips it, and GraphQL never exposes it because it is absent from the GraphQL object type.
 
 `QUERY` may need explicit proxy/WAF/CORS support outside the NestJS process.

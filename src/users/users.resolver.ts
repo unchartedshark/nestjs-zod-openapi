@@ -1,52 +1,42 @@
 import { Inject } from '@nestjs/common';
 import { Args, ID, Mutation, Query, Resolver } from '@nestjs/graphql';
-import { GraphQLStandardSchemaPipe } from '../graphql/graphql-standard-schema.pipe.js';
 import {
-  CreateUserSchema,
   GraphQLCreateUserInput,
   GraphQLSearchUsersInput,
   GraphQLUser,
   GraphQLUsersResult,
-  SearchUsersSchema,
-  UserIdSchema,
-  UserSchema,
-  UsersResultSchema,
-  type CreateUser,
-  type SearchUsers,
-} from './users.schema.js';
+} from './users.graphql.js';
 import { UsersService } from './users.service.js';
 
 /**
- * GraphQL adapter for UsersService.
+ * Thin GraphQL adapter for the same mocked service used by the REST controller.
  *
- * Resolver arguments are validated through Standard Schema; returned objects
- * are parsed against the same Zod schemas used by the REST serializer.
+ * No Standard Schema or Zod validation is applied here: GraphQL validates its
+ * own argument types and serializes fields against its code-first schema.
+ * Service-thrown domain errors are converted to GraphQL extensions globally.
  */
 @Resolver(() => GraphQLUser)
 export class UsersResolver {
   constructor(@Inject(UsersService) private readonly users: UsersService) {}
 
   @Query(() => GraphQLUser, { name: 'user' })
-  user(
-    @Args('id', { type: () => ID }, new GraphQLStandardSchemaPipe(UserIdSchema))
-    id: string,
-  ) {
-    return UserSchema.parse(this.users.findOne(id));
+  user(@Args('id', { type: () => ID }) id: string) {
+    return this.users.findOne(id);
   }
 
   @Query(() => GraphQLUsersResult, { name: 'users' })
   usersQuery(
-    @Args('input', { type: () => GraphQLSearchUsersInput }, new GraphQLStandardSchemaPipe(SearchUsersSchema))
-    input: SearchUsers,
+    @Args('input', { type: () => GraphQLSearchUsersInput })
+    input: GraphQLSearchUsersInput,
   ) {
-    return UsersResultSchema.parse(this.users.search(input));
+    return this.users.search(input);
   }
 
   @Mutation(() => GraphQLUser, { name: 'createUser' })
   createUser(
-    @Args('input', { type: () => GraphQLCreateUserInput }, new GraphQLStandardSchemaPipe(CreateUserSchema))
-    input: CreateUser,
+    @Args('input', { type: () => GraphQLCreateUserInput })
+    input: GraphQLCreateUserInput,
   ) {
-    return UserSchema.parse(this.users.create(input));
+    return this.users.create(input);
   }
 }

@@ -103,11 +103,24 @@ describe('GraphQL on the same Nest app', () => {
     expect(res.body.errors?.[0]?.extensions?.code).toBe('USER_ALREADY_EXISTS');
     expect(res.body.errors?.[0]?.extensions?.httpStatus).toBe(409);
   });
-  it('validates GraphQL arguments through the same Zod schema', async () => {
+  it('uses native GraphQL validation for required input fields', async () => {
     const res = await request(app.getHttpServer()).post('/graphql')
-      .send({ query: 'mutation { createUser(input: { email: "bad", displayName: "" }) { id } }' });
-    expect(res.body.errors?.[0]?.extensions?.code).toBe('BAD_USER_INPUT');
-    expect(res.body.errors?.[0]?.extensions?.issues).toEqual(expect.arrayContaining([expect.objectContaining({ pointer: '#/email' })]));
+      .send({ query: 'mutation { createUser(input: { email: "new@example.test" }) { id } }' });
+    expect(res.body.errors?.[0]?.extensions?.code).toBe('GRAPHQL_VALIDATION_FAILED');
+    expect(res.body.errors?.[0]?.message).toMatch(/displayName/);
+  });
+
+  it('uses GraphQL input defaults without a Zod pipe', async () => {
+    const res = await request(app.getHttpServer()).post('/graphql')
+      .send({ query: 'mutation { createUser(input: { email: "new@example.test", displayName: "New" }) { id role } }' });
+    expect(res.body.errors).toBeUndefined();
+    expect(res.body.data.createUser.role).toBe('member');
+  });
+
+  it('uses GraphQL scalar validation rather than a custom pipe', async () => {
+    const res = await request(app.getHttpServer()).post('/graphql')
+      .send({ query: 'mutation { createUser(input: { email: 123, displayName: "New" }) { id } }' });
+    expect(res.body.errors?.[0]?.extensions?.code).toBe('GRAPHQL_VALIDATION_FAILED');
   });
   it('exposes roles as a real GraphQL enum rather than a plain string', async () => {
     const res = await request(app.getHttpServer()).post('/graphql').send({
@@ -125,6 +138,13 @@ describe('GraphQL on the same Nest app', () => {
       query: 'query { users(input: { role: invalid }) { total } }',
     });
     expect(res.body.errors?.length).toBeGreaterThan(0);
+  });
+
+  it('uses GraphQL search defaults without applying Standard Schema', async () => {
+    const res = await request(app.getHttpServer()).post('/graphql')
+      .send({ query: 'query { users(input: {}) { total users { id } } }' });
+    expect(res.body.errors).toBeUndefined();
+    expect(res.body.data.users.total).toBe(2);
   });
 
   it('searches via the GraphQL resolver using the same service', async () => {

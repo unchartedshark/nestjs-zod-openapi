@@ -1,27 +1,22 @@
 import 'zod-openapi';
-import { Field, ID, InputType, Int, ObjectType, registerEnumType } from '@nestjs/graphql';
+import { UserRole } from './users.types.js';
 import { z } from 'zod';
 
 /**
- * Authoritative Zod runtime contracts for the REST and GraphQL user examples.
+ * Zod models for the REST API, OpenAPI documentation and Orval fixtures.
  *
- * The decorators below describe the executable GraphQL schema; Nest GraphQL
- * code-first still needs explicit types even with Zod runtime validation.
- * Integration tests verify that the two representations stay compatible.
+ * GraphQL has its own code-first schema. These models are not applied as a
+ * second validation layer to GraphQL resolver arguments or responses.
  */
 export const UserIdSchema = z.uuid().meta({
   description: 'User UUID.',
   example: '00000000-0000-4000-8000-000000000001',
 });
 
-export const UserRoleSchema = z.enum(['admin', 'member']).meta({
+export const UserRoleSchema = z.enum(UserRole).meta({
   description: 'Access role shared by REST and GraphQL.',
 });
 
-registerEnumType(UserRoleSchema.enum, {
-  name: 'UserRole',
-  description: 'Available user roles (values match the REST representation).',
-});
 
 /** Public user; internal service fields are intentionally stripped. */
 export const UserSchema = z.object({
@@ -38,7 +33,7 @@ export const CreateUserSchema = z.object({
   role: UserRoleSchema.default('member'),
 }).meta({ id: 'CreateUserRequest', description: 'Create a mock user.' });
 
-/** Request-body criteria used by HTTP QUERY and GraphQL search. */
+/** Request-body criteria used by the HTTP QUERY endpoint. */
 export const SearchUsersSchema = z.object({
   query: z.string().min(1).optional().meta({ description: 'Email or display name substring.' }),
   role: UserRoleSchema.optional(),
@@ -48,7 +43,7 @@ export const SearchUsersSchema = z.object({
   }),
 }).meta({ id: 'SearchUsersRequest', description: 'Search criteria.' });
 
-/** Search response shared by both protocols. */
+/** REST search result, also used as a TypeScript shape by the mock service. */
 export const UsersResultSchema = z.object({
   total: z.number().int().min(0),
   users: z.array(UserSchema),
@@ -59,37 +54,3 @@ export type CreateUser = z.output<typeof CreateUserSchema>;
 export type SearchUsers = z.output<typeof SearchUsersSchema>;
 export type UsersResult = z.output<typeof UsersResultSchema>;
 
-/**
- * GraphQL's object model. Validation and serialization still use `UserSchema`.
- * These classes exist only to provide code-first GraphQL reflection metadata.
- */
-@ObjectType('User')
-export class GraphQLUser implements User {
-  @Field(() => ID) id!: string;
-  @Field(() => String) email!: string;
-  @Field(() => String) displayName!: string;
-  @Field(() => UserRoleSchema.enum) role!: User['role'];
-}
-
-/** Metadata for the GraphQL `users` query response. */
-@ObjectType('UsersResult')
-export class GraphQLUsersResult implements UsersResult {
-  @Field(() => Int) total!: number;
-  @Field(() => [GraphQLUser]) users!: GraphQLUser[];
-}
-
-/** Code-first input definition aligned with `CreateUserSchema`. */
-@InputType('CreateUserInput')
-export class GraphQLCreateUserInput {
-  @Field(() => String) email!: string;
-  @Field(() => String) displayName!: string;
-  @Field(() => UserRoleSchema.enum, { nullable: true }) role?: User['role'];
-}
-
-/** Code-first search input aligned with `SearchUsersSchema`. */
-@InputType('SearchUsersInput')
-export class GraphQLSearchUsersInput {
-  @Field(() => String, { nullable: true }) query?: string;
-  @Field(() => UserRoleSchema.enum, { nullable: true }) role?: User['role'];
-  @Field(() => Int, { nullable: true }) limit?: number;
-}

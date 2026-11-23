@@ -1,6 +1,6 @@
 # Design and review notes
 
-The example intentionally demonstrates a single NestJS process exposing **REST and GraphQL** with one mocked domain service. All validation schemas live in `*.schema.ts`; HTTP OpenAPI and GraphQL are **separate contracts** backed by the same Zod parsing rules.
+The example demonstrates a single NestJS application exposing **REST and GraphQL** through the same mocked domain service. REST uses Zod Standard Schema; GraphQL uses its native code-first executable schema. They deliberately have separate validation contracts.
 
 ## Implementation choices
 
@@ -17,11 +17,13 @@ The example intentionally demonstrates a single NestJS process exposing **REST a
 | Client fixtures | Orval 8 + Faker from the generated spec | Detects disagreements between Zod and OpenAPI |
 | CI | Node 24 + TypeScript + Oxlint + Vitest | Supports HTTP QUERY and checks source code conventions |
 
-## What is intentionally not generated from Zod
+## Separation of REST and GraphQL schemas
 
-NestJS code-first GraphQL currently requires `@ObjectType`, `@InputType`, `@Field`, etc. in order to build an executable GraphQL schema. Those **metadata classes aren't validation DTOs** and must remain synchronized with the Zod schemas.
+`users.schema.ts` defines Zod contracts used by REST request validation, response serialization, OpenAPI and Orval. `users.graphql.ts` defines NestJS code-first types and defaults; it has no Zod runtime dependency or custom argument-validation pipe. The role values live in `users.types.ts` and feed the REST enum and GraphQL enum independently.
 
-A Zod enum provides both the input/output runtime validation and the enum values registered with GraphQL; the SDL is tested using introspection to detect type drift.
+GraphQL validates its declared types: missing required fields, invalid enum members and incompatible scalar values are rejected natively. It **does not** perform Zod-specific constraints such as email-format validation or UUID refinements. Those are specific to the REST API in this sample. Domain errors thrown by the mocked service remain shared across transports.
+
+GraphQL response fields are constrained by its object type and the selection set; HTTP response sanitization is handled by Nest's Standard Schema serializer.
 
 ## Why there are two TypeScript configurations
 
@@ -33,13 +35,13 @@ Production builds use `NodeNext` so emitted ESM imports include their `.js` exte
 
 REST responses follow [RFC 9457](https://www.rfc-editor.org/rfc/rfc9457) and use `application/problem+json`. The validation extension contains JSON Pointer fragments relative to the validated input. We deliberately use HTTP 422 for schema validation; HTTP method and JSON syntax errors may use different statuses.
 
-GraphQL errors are not HTTP Problem Details. GraphQL domain failures include `errors[].extensions.code` (and demonstration-only HTTP status/type extensions). GraphQL argument validation uses `BAD_USER_INPUT`. Both use the same underlying domain errors.
+GraphQL errors are not HTTP Problem Details. GraphQL domain failures include `errors[].extensions.code` (and demonstration-only HTTP status/type extensions). GraphQL schema validation uses its native `GRAPHQL_VALIDATION_FAILED` error code; no custom argument-validation pipe is installed. Both transports use the same underlying domain errors.
 
 The `https://example.test/problems/...` values are placeholder *identifiers*, not hosted documentation. Real deployments should publish permanent problem type documentation at their own stable URLs.
 
 ## Test boundaries
 
-The integration suite checks real NestJS REST and GraphQL requests, HTTP QUERY, Zod sanitization, named RFC 9457 models, OpenAPI `$ref` resolution, GraphQL enum metadata, domain errors and validation errors. Orval generation is performed before tests, and generated Faker responses are reparsed by the canonical Zod schemas.
+The integration suite checks real NestJS REST and GraphQL requests, HTTP QUERY, Zod sanitization, named RFC 9457 models, OpenAPI `$ref` resolution, GraphQL enum metadata, native input type validation, domain errors and GraphQL defaults. Orval generation is performed before tests, and generated Faker responses are reparsed by the canonical Zod schemas.
 
 **Not claimed:** live browser UI testing of Scalar, support of HTTP QUERY across every CDN/proxy, or production database semantics. The example is intentionally service-only.
 
