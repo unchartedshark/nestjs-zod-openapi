@@ -22,6 +22,8 @@ const OPENAPI_VERSION = '3.2.0';
  *
  * No custom converter, schema list, per-feature registration or additional
  * Zod/OpenAPI adapter is required. Named models use `z.meta({ id })`.
+ * Cookie authentication is the OpenAPI default, matching Better Auth's
+ * global guard; public REST controllers use `@ApiSecurity({})` to opt out.
  *
  * @param app - The Nest application whose REST routes should be documented.
  * @returns An OpenAPI 3.2 document consumed by Scalar and Orval.
@@ -32,10 +34,12 @@ export function createOpenApiDocument(app: INestApplication) {
     .setDescription('Mocked user service, RFC 9457 errors, HTTP QUERY, and GraphQL.')
     .setVersion('1.0.0')
     .setOpenAPIVersion(OPENAPI_VERSION)
+    // Protected-by-default: only explicitly documented public routes override this.
     .addCookieAuth('better-auth.session_token', {
       type: 'apiKey',
       description: 'Better Auth session cookie on local HTTP; HTTPS uses a secure cookie prefix.',
-    }, 'better-auth.session_token')
+    }, 'session')
+    .addSecurityRequirements('session')
     .build();
 
   const document = SwaggerModule.createDocument(app, config);

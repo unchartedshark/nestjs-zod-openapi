@@ -10,7 +10,7 @@ import {
   SerializeOptions,
   type INestApplication,
 } from '@nestjs/common';
-import { ApiCreatedResponse } from '@nestjs/swagger';
+import { ApiCreatedResponse, ApiSecurity } from '@nestjs/swagger';
 import { z } from 'zod';
 import { Test } from '@nestjs/testing';
 import { AppModule } from '../src/app.module.js';
@@ -32,6 +32,7 @@ const ProbeOutputSchema = z.object({
 }).meta({ id: 'ProbeOutput' });
 
 @AllowAnonymous()
+@ApiSecurity({})
 @Controller('_schema-discovery')
 class SchemaDiscoveryController {
   @Post()
@@ -112,6 +113,8 @@ describe('HTTP & OpenAPI 3.2', () => {
       .toBe('#/components/schemas/ProbeOutput');
     expect(response.body.components.schemas.ProbeInput).toBeDefined();
     expect(response.body.components.schemas.ProbeOutput).toBeDefined();
+    expect(response.body.security).toEqual([{ session: [] }]);
+    expect(operation.security).toEqual([{}]);
 
     const created = await request(app.getHttpServer())
       .post('/_schema-discovery')

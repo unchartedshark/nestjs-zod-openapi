@@ -1,7 +1,6 @@
 import { Controller, Get, SerializeOptions } from '@nestjs/common';
 import { Roles } from '@thallesp/nestjs-better-auth';
 import {
-  ApiCookieAuth,
   ApiForbiddenResponse,
   ApiOkResponse,
   ApiOperation,
@@ -27,7 +26,6 @@ const AdminResponseSchema = z.object({
 export class AdminController {
   @Get('only')
   @Roles(['admin'])
-  @ApiCookieAuth('better-auth.session_token')
   @ApiOperation({ summary: 'Admin-only example', description: 'Requires a Better Auth session with the system admin role.' })
   @ApiOkResponse({ standardSchema: AdminResponseSchema })
   @ApiUnauthorizedResponse({ description: 'Not signed in', standardSchema: ProblemDetailsSchema })

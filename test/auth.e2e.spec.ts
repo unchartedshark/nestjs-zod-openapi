@@ -95,24 +95,29 @@ describe('Better Auth admin integration', () => {
     expect(response.body).toEqual({ message: 'Admin access granted.' });
   });
 
-  it('documents cookie auth only on the protected operation', async () => {
+  it('documents global cookie auth and overrides it only for anonymous REST routes', async () => {
     const response = await request(app.getHttpServer())
       .get('/openapi-json')
       .expect(200);
 
-    const scheme = response.body.components.securitySchemes['better-auth.session_token'];
+    const scheme = response.body.components.securitySchemes.session;
     expect(scheme).toEqual(expect.objectContaining({
       type: 'apiKey',
       in: 'cookie',
       name: 'better-auth.session_token',
     }));
 
-    const protectedOperation = response.body.paths['/admin/only'].get;
-    expect(protectedOperation.security).toContainEqual({
-      'better-auth.session_token': [],
-    });
+    // The root security requirement applies to every REST operation by default.
+    expect(response.body.security).toEqual([{ session: [] }]);
 
-    expect(response.body.paths['/users/{id}'].get.security).toBeUndefined();
+    // Admin inherits the default; it needs NO @ApiCookieAuth on its route.
+    const protectedOperation = response.body.paths['/admin/only'].get;
+    expect(protectedOperation.security).toBeUndefined();
+
+    // @ApiSecurity({}) overrides the global requirement on public routes.
+    expect(response.body.paths['/users/{id}'].get.security).toEqual([{}]);
+    expect(response.body.paths['/users'].post.security).toEqual([{}]);
+    expect(response.body.paths['/users/search'].query.security).toEqual([{}]);
     expect(protectedOperation.responses['401'].content['application/problem+json'])
       .toBeDefined();
     expect(protectedOperation.responses['403'].content['application/problem+json'])

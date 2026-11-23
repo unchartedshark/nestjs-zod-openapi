@@ -68,16 +68,22 @@ controller uses
 ```ts
 @Get('only')
 @Roles(['admin'])
-@ApiCookieAuth('better-auth.session_token')
 only() {
   return { message: 'Admin access granted.' };
 }
 ```
 
-The OpenAPI document defines the **Better Auth session cookie** security scheme,
-and only the protected admin operation requires it. This is *cookie/session*
-authentication, not an invented JWT bearer token. Swagger/OpenAPI describes
-authentication, while the NestJS integration actually enforces it.
+The OpenAPI document declares **Better Auth session-cookie authentication
+globally** using `DocumentBuilder.addSecurityRequirements('session')`.
+Every protected operation inherits it automatically; no
+`@ApiCookieAuth()` or `@ApiSecurity()` is needed on protected controllers.
+Only public REST routes override the global scheme using
+`@ApiSecurity({})` alongside the Better Auth `@AllowAnonymous()`
+decorator. GraphQL resolvers only need `@AllowAnonymous()` because they
+are not OpenAPI operations.
+
+This is cookie/session authentication, not JWT bearer authentication.
+OpenAPI describes the requirement; the Better Auth global guard enforces it.
 
 For local development, `auth.sqlite` is a real but disposable auth database
 (the mocked user service needs no database). Run `npm run auth:migrate` before

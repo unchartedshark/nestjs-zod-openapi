@@ -13,7 +13,7 @@ The example demonstrates a single NestJS application exposing **REST and GraphQL
 | API reference | Scalar at `/reference` | Consumes the generated `/openapi-json` |
 | GraphQL | Nest GraphQL code-first decorators | Needed for GraphQL SDL and type metadata |
 | Authentication | Community `@thallesp/nestjs-better-auth`, Better Auth admin plugin and real SQLite sessions | Native Nest guards and `@Roles(['admin'])`; no custom authentication code |
-| OpenAPI auth | `@ApiCookieAuth()` + `DocumentBuilder.addCookieAuth()` | Security requirements are declared only on the protected operation |
+| OpenAPI auth | `addCookieAuth()` + global `addSecurityRequirements('session')`; `@ApiSecurity({})` on public REST controllers | Mirrors the global guard without repeating security decorators on protected routes |
 | Domain errors | Framework-independent errors + transport-aware Nest filter | REST gets RFC 9457; GraphQL gets `extensions.code` |
 | Client fixtures | Orval 8 + Faker from the generated spec | Detects disagreements between Zod and OpenAPI |
 | CI | Node 24 + TypeScript + Oxlint + Vitest | Supports HTTP QUERY and checks source code conventions |
@@ -51,10 +51,15 @@ the admin endpoint requires `@Roles(['admin'])` without `@UseGuards`.
 The GraphQL module passes `{ req }` in context so the global guard can obtain
 HTTP request headers before checking anonymous-route metadata.
 
-The admin-only REST operation advertises a cookie-based security requirement
-via `@ApiCookieAuth()` and the one-time
-`DocumentBuilder.addCookieAuth('better-auth.session_token')` setting.
-The guard, not the OpenAPI description, enforces security.
+The OpenAPI document declares Better Auth's cookie scheme once with
+`DocumentBuilder.addCookieAuth('better-auth.session_token', ..., 'session')`
+and sets `addSecurityRequirements('session')` for all operations. Protected
+routes inherit the security requirement automatically; no per-route
+`@ApiCookieAuth()` decorator is needed. The anonymous REST controller has
+both `@AllowAnonymous()` for the guard and `@ApiSecurity({})` to override the
+OpenAPI default. GraphQL resolvers need only `@AllowAnonymous()`.
+
+OpenAPI documents security, while Better Auth's global guard enforces it.
 Better Auth's `/api/auth/*` routes are mounted by the library and aren't
 automatically included as ordinary Nest controller operations.
 

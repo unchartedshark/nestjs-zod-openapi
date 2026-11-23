@@ -17,6 +17,7 @@ import {
   ApiNotFoundResponse,
   ApiOkResponse,
   ApiOperation,
+  ApiSecurity,
   ApiTags,
   ApiUnprocessableEntityResponse,
 } from '@nestjs/swagger';
@@ -46,7 +47,9 @@ import { UsersService } from './users.service.js';
  *
  * Adding endpoints or models never requires updating the OpenAPI bootstrap.
  */
+// Better Auth and OpenAPI each need their own public-route metadata.
 @AllowAnonymous()
+@ApiSecurity({})
 @ApiTags('Users')
 @Controller('users')
 @ApiInternalServerErrorResponse({
