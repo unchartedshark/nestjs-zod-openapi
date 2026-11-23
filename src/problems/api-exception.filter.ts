@@ -8,12 +8,12 @@ import {
 import { HttpAdapterHost } from '@nestjs/core';
 import { GraphQLError } from 'graphql';
 import { STATUS_CODES } from 'node:http';
-import { UserDomainError } from '../users/users.errors.js';
+import { DomainError } from './domain.error.js';
 import { InputValidationError } from './input-validation.error.js';
 import { VALIDATION_PROBLEM_TYPE } from './problem.schema.js';
 
 /**
- * Renders domain errors using the correct protocol-specific error format.
+ * Renders any expected application error using its shared DomainError contract.
  *
  * REST responses follow RFC 9457 with `application/problem+json`.
  * GraphQL errors use `errors[].extensions`; returning a REST body inside
@@ -40,7 +40,15 @@ export class ApiExceptionFilter implements ExceptionFilter {
       return exception;
     }
 
-    if (exception instanceof UserDomainError) {
+    if (exception instanceof DomainError) {
+      // Unexpected server failures must not expose their internal messages.
+      if (exception.httpStatus >= 500) {
+        this.logUnexpectedException(exception);
+        return new GraphQLError('Internal server error', {
+          extensions: { code: 'INTERNAL_SERVER_ERROR' },
+        });
+      }
+
       return new GraphQLError(exception.message, {
         extensions: {
           code: exception.code,
@@ -82,7 +90,7 @@ export class ApiExceptionFilter implements ExceptionFilter {
   }
 
   private httpStatus(exception: unknown): number {
-    if (exception instanceof UserDomainError) {
+    if (exception instanceof DomainError) {
       return exception.httpStatus;
     }
     if (exception instanceof HttpException) {
@@ -95,7 +103,7 @@ export class ApiExceptionFilter implements ExceptionFilter {
     if (exception instanceof InputValidationError) {
       return VALIDATION_PROBLEM_TYPE;
     }
-    if (exception instanceof UserDomainError) {
+    if (exception instanceof DomainError) {
       return exception.problemType;
     }
     return 'about:blank';
@@ -106,7 +114,7 @@ export class ApiExceptionFilter implements ExceptionFilter {
     if (status >= 500) {
       return 'An unexpected server error occurred.';
     }
-    if (exception instanceof UserDomainError) {
+    if (exception instanceof DomainError) {
       return exception.message;
     }
     if (!(exception instanceof HttpException)) {

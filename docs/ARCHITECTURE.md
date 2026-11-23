@@ -14,7 +14,7 @@ The example demonstrates a single NestJS application exposing **REST and GraphQL
 | GraphQL | Nest GraphQL code-first decorators | Needed for GraphQL SDL and type metadata |
 | Authentication | Community `@thallesp/nestjs-better-auth`, Better Auth admin plugin and real SQLite sessions | Native Nest guards and `@Roles(['admin'])`; no custom authentication code |
 | OpenAPI auth | `addCookieAuth()` + global `addSecurityRequirements('session')`; `@ApiSecurity({})` on public REST controllers | Mirrors the global guard without repeating security decorators on protected routes |
-| Domain errors | Framework-independent errors + transport-aware Nest filter | REST gets RFC 9457; GraphQL gets `extensions.code` |
+| Domain errors | Shared framework-agnostic `DomainError` base and feature-owned subclasses | Generic filter formats RFC 9457 for REST and `extensions.code` for GraphQL; no feature imports |
 | Client fixtures | Orval 8 + Faker from the generated spec | Detects disagreements between Zod and OpenAPI |
 | CI | Node 24 + TypeScript + Oxlint + Vitest | Supports HTTP QUERY and checks source code conventions |
 
@@ -82,6 +82,19 @@ Production builds use `NodeNext` so emitted ESM imports include their `.js` exte
 `tsx` does not emit the TypeScript decorator metadata required by NestJS GraphQL code-first. For that reason OpenAPI export compiles the server with `tsc` and runs the generated JavaScript. Vitest uses SWC's decorator metadata handling.
 
 ## Error semantics
+
+The generic exception filter only imports the shared `DomainError` contract
+from `problems/domain.error.ts` and generic validation errors. Feature modules
+extend `DomainError` with their own codes, statuses and problem type URIs;
+the filter does not need to know any feature name. Feature-specific OpenAPI
+error models belong beside the controller (for example,
+`users/users.problem.schema.ts`) and are discovered through its normal
+Swagger decorators. Adding a new domain error requires **no change** to the
+global exception filter or OpenAPI bootstrap.
+
+The integration suite adds an independent test-only domain error and checks its
+HTTP 409 Problem Details response to enforce this boundary.
+
 
 REST responses follow [RFC 9457](https://www.rfc-editor.org/rfc/rfc9457) and use `application/problem+json`. The validation extension contains JSON Pointer fragments relative to the validated input. We deliberately use HTTP 422 for schema validation; HTTP method and JSON syntax errors may use different statuses.
 

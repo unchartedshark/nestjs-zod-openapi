@@ -23,10 +23,12 @@ import {
 } from '@nestjs/swagger';
 import {
   InternalProblemSchema,
-  UserConflictProblemSchema,
-  UserNotFoundProblemSchema,
   ValidationProblemSchema,
 } from '../problems/problem.schema.js';
+import {
+  UserConflictProblemSchema,
+  UserNotFoundProblemSchema,
+} from './users.problem.schema.js';
 import {
   CreateUserSchema,
   SearchUsersSchema,

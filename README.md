@@ -39,12 +39,14 @@ src/
     users.resolver.ts    # GraphQL queries and mutation
     users.service.ts     # static mock data and domain errors
     users.schema.ts      # Zod contracts for REST and OpenAPI\n    users.graphql.ts     # Native NestJS code-first GraphQL types\n    users.types.ts       # Framework-neutral role values
-    users.errors.ts      # domain exceptions shared by both transports
+    users.errors.ts      # feature-specific errors extending a shared base
+    users.problem.schema.ts # feature-owned Problem Details models
     users.module.ts
   auth/
     auth.ts             # Better Auth, admin plugin and SQLite session store
     admin.controller.ts # @Roles(['admin']) with Nest's auth guard
   problems/
+    domain.error.ts          # shared feature-independent error base
     problem.schema.ts        # reusable RFC 9457 problem models
     api-exception.filter.ts  # HTTP problem+json vs GraphQL extensions
     problem-openapi.ts      # generic RFC 9457 response media mapping
@@ -155,6 +157,13 @@ that behavior for all error statuses. No error-model registry is maintained.
 GitHub Actions runs the same generation, Oxlint, TypeScript, Vitest, and build steps on every push and pull request, on Node 24. Generated artifacts are excluded from git and regenerated on CI.
 
 ## Error handling
+
+Feature code raises its own `DomainError` subclass. The global exception filter
+imports **no feature modules**; it handles the shared error contract, producing
+RFC 9457 for REST and GraphQL error extensions for resolvers. Feature-owned
+Problem Details schemas are documented directly in their controller decorators.
+The integration suite introduces an unrelated error to prove no central
+registration or per-feature filter edits are needed.
 
 REST failures are `application/problem+json` with named reusable `components.schemas` ($ref) and field-level validation issues (HTTP 422). GraphQL remains GraphQL: domain exceptions become typed `errors[].extensions.code` values; invalid field types, missing required fields, and bad enum values are handled by GraphQL itself (`GRAPHQL_VALIDATION_FAILED`). The global filter checks the transport rather than responding to GraphQL exceptions with HTTP Problem Details.
 

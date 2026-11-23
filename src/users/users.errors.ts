@@ -1,24 +1,30 @@
-/** Transport-independent domain errors; REST and GraphQL render them differently. */
-export abstract class UserDomainError extends Error {
-  constructor(
-    public readonly code: 'USER_NOT_FOUND' | 'USER_ALREADY_EXISTS',
-    public readonly httpStatus: 404 | 409,
-    public readonly problemType: string,
-    message: string,
-  ) {
-    super(message);
-    this.name = code;
-  }
-}
+import { DomainError } from '../problems/domain.error.js';
 
-export class UserNotFoundError extends UserDomainError {
+/** Stable problem type identifiers for the Users feature. */
+export const USER_NOT_FOUND_PROBLEM_TYPE =
+  'https://example.test/problems/user-not-found';
+export const USER_ALREADY_EXISTS_PROBLEM_TYPE =
+  'https://example.test/problems/user-already-exists';
+
+/** No transport-specific exception or shared filter registration is required. */
+export class UserNotFoundError extends DomainError {
   constructor(id: string) {
-    super('USER_NOT_FOUND', 404, 'https://example.test/problems/user-not-found', `User '${id}' was not found.`);
+    super(
+      'USER_NOT_FOUND',
+      404,
+      USER_NOT_FOUND_PROBLEM_TYPE,
+      `User '${id}' was not found.`,
+    );
   }
 }
 
-export class UserAlreadyExistsError extends UserDomainError {
+export class UserAlreadyExistsError extends DomainError {
   constructor(email: string) {
-    super('USER_ALREADY_EXISTS', 409, 'https://example.test/problems/user-already-exists', `User '${email}' already exists.`);
+    super(
+      'USER_ALREADY_EXISTS',
+      409,
+      USER_ALREADY_EXISTS_PROBLEM_TYPE,
+      `User '${email}' already exists.`,
+    );
   }
 }

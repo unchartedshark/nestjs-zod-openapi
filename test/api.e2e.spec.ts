@@ -6,17 +6,20 @@ import request from 'supertest';
 import {
   Body,
   Controller,
+  Get,
   Post,
   SerializeOptions,
   type INestApplication,
 } from '@nestjs/common';
-import { ApiCreatedResponse, ApiSecurity } from '@nestjs/swagger';
+import { ApiConflictResponse, ApiCreatedResponse, ApiSecurity } from '@nestjs/swagger';
 import { z } from 'zod';
 import { Test } from '@nestjs/testing';
 import { AppModule } from '../src/app.module.js';
 import { configureApp } from '../src/openapi.js';
 import { UserSchema, UsersResultSchema } from '../src/users/users.schema.js';
-import { UserConflictProblemSchema, UserNotFoundProblemSchema, ValidationProblemSchema } from '../src/problems/problem.schema.js';
+import { ProblemDetailsSchema, ValidationProblemSchema } from '../src/problems/problem.schema.js';
+import { UserConflictProblemSchema, UserNotFoundProblemSchema } from '../src/users/users.problem.schema.js';
+import { DomainError } from '../src/problems/domain.error.js';
 
 /**
  * A controller introduced only by this test. It has no production registration
@@ -31,6 +34,16 @@ const ProbeOutputSchema = z.object({
   accepted: z.boolean(),
 }).meta({ id: 'ProbeOutput' });
 
+/**
+ * Illustrates a domain error owned by a completely unrelated feature.
+ * The API exception filter must handle it without importing its class.
+ */
+class ProbeConflictError extends DomainError {
+  constructor() {
+    super('PROBE_CONFLICT', 409, 'https://example.test/problems/probe-conflict', 'Probe already exists.');
+  }
+}
+
 @AllowAnonymous()
 @ApiSecurity({})
 @Controller('_schema-discovery')
@@ -40,6 +53,12 @@ class SchemaDiscoveryController {
   @SerializeOptions({ schema: ProbeOutputSchema })
   create(@Body({ schema: ProbeInputSchema }) input: z.output<typeof ProbeInputSchema>) {
     return { name: input.name, accepted: true, internalOnly: 'must not be sent' };
+  }
+
+  @Get('conflict')
+  @ApiConflictResponse({ standardSchema: ProblemDetailsSchema })
+  conflict(): never {
+    throw new ProbeConflictError();
   }
 }
 
@@ -130,6 +149,21 @@ describe('HTTP & OpenAPI 3.2', () => {
       .expect(422);
     expect(ValidationProblemSchema.safeParse(result.body).success).toBe(true);
     expect(result.headers['content-type']).toContain('application/problem+json');
+  });
+
+  it('handles domain errors from any feature without special-case filter imports', async () => {
+    const response = await request(app.getHttpServer())
+      .get('/_schema-discovery/conflict')
+      .expect(409);
+
+    expect(response.headers['content-type']).toContain('application/problem+json');
+    expect(ProblemDetailsSchema.safeParse(response.body).success).toBe(true);
+    expect(response.body).toEqual(expect.objectContaining({
+      type: 'https://example.test/problems/probe-conflict',
+      title: 'Conflict',
+      status: 409,
+      detail: 'Probe already exists.',
+    }));
   });
 
   it('documents QUERY, reusable component refs, and problem media types', async () => {
