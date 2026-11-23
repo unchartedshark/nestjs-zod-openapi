@@ -5,3 +5,4 @@ openapi.json
 src/generated/
 .env
 *.log
+auth.sqlite*

@@ -32,6 +32,10 @@ export function createOpenApiDocument(app: INestApplication) {
     .setDescription('Mocked user service, RFC 9457 errors, HTTP QUERY, and GraphQL.')
     .setVersion('1.0.0')
     .setOpenAPIVersion(OPENAPI_VERSION)
+    .addCookieAuth('better-auth.session_token', {
+      type: 'apiKey',
+      description: 'Better Auth session cookie on local HTTP; HTTPS uses a secure cookie prefix.',
+    })
     .build();
 
   const document = SwaggerModule.createDocument(app, config);

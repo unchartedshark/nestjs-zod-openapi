@@ -1,11 +1,13 @@
 # NestJS 12 · Zod 4 · OpenAPI 3.2 · GraphQL · HTTP QUERY
 
-A minimal REST + GraphQL server: **REST uses Zod Standard Schema and OpenAPI**; **GraphQL uses NestJS code-first types, native validation and custom domain errors**. Neither API requires validation from the other. All data is mocked by `UsersService`; there is no database or external API.
+A minimal REST + GraphQL server: **REST uses Zod Standard Schema and OpenAPI**; **GraphQL uses NestJS code-first types, native validation and custom domain errors**. Neither API requires validation from the other. The example user records are mocked. Better Auth uses a small local SQLite database for actual sessions and its admin plugin.
 
 **Requires Node 24** (Orval 8 needs Node 22.18+).
 
 ```bash
 npm install
+export BETTER_AUTH_SECRET="$(openssl rand -hex 32)"
+npm run auth:migrate
 npm run verify   # creates the OpenAPI doc, Orval client/fixtures, types, tests and JS build
 npm run dev
 ```
@@ -16,6 +18,8 @@ Endpoints:
 - SwaggerModule OpenAPI 3.2 JSON: <http://localhost:3000/openapi-json>
 - GraphiQL: <http://localhost:3000/graphql>
 - REST: `GET /users/:id`, `POST /users`, `QUERY /users/search`
+- Better Auth: `/api/auth/*` (email/password sign-in and session cookies)
+- Admin-only REST: `GET /admin/only`
 
 ```bash
 curl -sS http://localhost:3000/users/00000000-0000-4000-8000-000000000001
@@ -37,6 +41,9 @@ src/
     users.schema.ts      # Zod contracts for REST and OpenAPI\n    users.graphql.ts     # Native NestJS code-first GraphQL types\n    users.types.ts       # Framework-neutral role values
     users.errors.ts      # domain exceptions shared by both transports
     users.module.ts
+  auth/
+    auth.ts             # Better Auth, admin plugin and SQLite session store
+    admin.controller.ts # @Roles(['admin']) with Nest's auth guard
   problems/
     problem.schema.ts        # reusable RFC 9457 problem models
     api-exception.filter.ts  # HTTP problem+json vs GraphQL extensions
@@ -44,9 +51,55 @@ src/
     input-validation.error.ts
   openapi.ts             # single OpenAPI document generator + Scalar
 scripts/export-openapi.ts
+scripts/migrate-auth.ts
 orval.config.ts
 .github/workflows/ci.yml
 ```
+
+## Minimal Better Auth admin-only route
+
+The community-supported `@thallesp/nestjs-better-auth` module mounts
+Better Auth at `/api/auth/*`. We use its **global guard** so new application
+routes default to protected. The pre-existing REST and GraphQL demonstration
+routes are explicitly `@AllowAnonymous()`. The admin controller uses
+`@Roles(['admin'])`, which checks Better Auth's admin-plugin system role.
+
+```ts
+@Get('only')
+@Roles(['admin'])
+@ApiCookieAuth()
+only() {
+  return { message: 'Admin access granted.' };
+}
+```
+
+The OpenAPI document defines the **Better Auth session cookie** security scheme,
+and only the protected admin operation requires it. This is *cookie/session*
+authentication, not an invented JWT bearer token. Swagger/OpenAPI describes
+authentication, while the NestJS integration actually enforces it.
+
+For local development, `auth.sqlite` is a real but disposable auth database
+(the mocked user service needs no database). Run `npm run auth:migrate` before
+starting the server. Set `BETTER_AUTH_URL` when not using
+`http://localhost:3000` and supply a strong, unique `BETTER_AUTH_SECRET`.
+Both environment variables are mandatory considerations for deployment.
+
+Create your first administrator using Better Auth's CLI after migrating the
+schema (it prompts for the password):
+
+```sh
+npx auth@latest create-admin --config ./src/auth/auth.ts \
+  --email admin@example.com --name Admin --role admin
+```
+
+The admin plugin defaults normal accounts to role `user`. **Do not treat the
+mock service's `member` role as an authentication role.** The test suite
+creates a real normal session and an admin session in in-memory SQLite; it
+verifies unauthenticated (401), non-admin (403) and admin (200) responses.
+
+This example uses a local HTTP cookie called `better-auth.session_token`.
+For HTTPS, Better Auth applies the secure cookie prefix; configure OpenAPI's
+cookie name to match your production Better Auth cookie settings.
 
 ## Adding another REST endpoint
 

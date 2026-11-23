@@ -12,6 +12,8 @@ The example demonstrates a single NestJS application exposing **REST and GraphQL
 | Reusable components | `schema.meta({ id })` + `@ApiResponse({ standardSchema })` | Swagger discovers and registers named `$ref` components; no central list |
 | API reference | Scalar at `/reference` | Consumes the generated `/openapi-json` |
 | GraphQL | Nest GraphQL code-first decorators | Needed for GraphQL SDL and type metadata |
+| Authentication | Community `@thallesp/nestjs-better-auth`, Better Auth admin plugin and real SQLite sessions | Native Nest guards and `@Roles(['admin'])`; no custom authentication code |
+| OpenAPI auth | `@ApiCookieAuth()` + `DocumentBuilder.addCookieAuth()` | Security requirements are declared only on the protected operation |
 | Domain errors | Framework-independent errors + transport-aware Nest filter | REST gets RFC 9457; GraphQL gets `extensions.code` |
 | Client fixtures | Orval 8 + Faker from the generated spec | Detects disagreements between Zod and OpenAPI |
 | CI | Node 24 + TypeScript + Oxlint + Vitest | Supports HTTP QUERY and checks source code conventions |
@@ -37,6 +39,25 @@ the media type to `application/json`, regardless of the response status. The
 single generic `useProblemMediaType` step aligns all generated HTTP error
 responses to `application/problem+json`. It does **not** register or enumerate
 any schemas and needs no edits when new endpoints or errors are introduced.
+
+## Admin-only authentication
+
+Better Auth's admin plugin provides the persistent `user.role` field.
+`@thallesp/nestjs-better-auth` supplies the Nest `AuthGuard` and
+`@Roles(['admin'])` decorator; we do not duplicate them. The guard is
+global by default, while the existing mock demo controllers and resolvers
+are deliberately `@AllowAnonymous()`. New routes default to secure.
+
+The admin-only REST operation advertises a cookie-based security requirement
+via `@ApiCookieAuth()` and the one-time
+`DocumentBuilder.addCookieAuth('better-auth.session_token')` setting.
+The guard, not the OpenAPI description, enforces security.
+Better Auth's `/api/auth/*` routes are mounted by the library and aren't
+automatically included as ordinary Nest controller operations.
+
+Only Better Auth uses SQLite. Its migrations are run explicitly through
+`npm run auth:migrate`, not on each app bootstrap. Tests use ephemeral SQLite
+and exercise actual session cookies and user roles.
 
 ## Separation of REST and GraphQL schemas
 

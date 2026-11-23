@@ -1,4 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { getMigrations } from 'better-auth/db/migration';
+import { AllowAnonymous } from '@thallesp/nestjs-better-auth';
+import { auth } from '../src/auth/auth.js';
 import request from 'supertest';
 import {
   Body,
@@ -28,6 +31,7 @@ const ProbeOutputSchema = z.object({
   accepted: z.boolean(),
 }).meta({ id: 'ProbeOutput' });
 
+@AllowAnonymous()
 @Controller('_schema-discovery')
 class SchemaDiscoveryController {
   @Post()
@@ -45,8 +49,10 @@ let baseUrl: string;
 let document: ReturnType<typeof configureApp>;
 
 beforeAll(async () => {
+  const { runMigrations } = await getMigrations(auth.options);
+  await runMigrations();
   const mod = await Test.createTestingModule({ imports: [AppModule], controllers: [SchemaDiscoveryController] }).compile();
-  app = mod.createNestApplication();
+  app = mod.createNestApplication({ bodyParser: false });
   document = configureApp(app);
   await app.listen(0, '127.0.0.1');
   baseUrl = await app.getUrl();
