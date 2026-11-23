@@ -10,7 +10,7 @@
     "dev": "npm run build && node dist/src/main.js",
     "build": "tsc -p tsconfig.build.json",
     "start": "node dist/src/main.js",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --project tsconfig.typecheck.json --noEmit",
     "openapi:export": "npm run build && node dist/scripts/export-openapi.js",
     "generate:client": "orval --config orval.config.ts",
     "generate": "npm run openapi:export && npm run generate:client",
