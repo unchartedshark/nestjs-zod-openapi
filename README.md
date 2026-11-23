@@ -40,13 +40,46 @@ src/
   problems/
     problem.schema.ts        # reusable RFC 9457 problem models
     api-exception.filter.ts  # HTTP problem+json vs GraphQL extensions
-    api-response.decorator.ts
+    problem-openapi.ts      # generic RFC 9457 response media mapping
     input-validation.error.ts
   openapi.ts             # single OpenAPI document generator + Scalar
 scripts/export-openapi.ts
 orval.config.ts
 .github/workflows/ci.yml
 ```
+
+## Adding another REST endpoint
+
+**No central registration is needed.** Define a Zod schema with a name, then use
+Nest's documented Standard Schema and Swagger response decorators:
+
+```ts
+export const CreateThingSchema = z.object({
+  label: z.string().min(1),
+}).meta({ id: 'CreateThing' });
+
+export const ThingSchema = z.object({
+  id: z.uuid(),
+  label: z.string(),
+}).meta({ id: 'Thing' });
+
+@Post()
+@ApiCreatedResponse({ standardSchema: ThingSchema })
+@SerializeOptions({ schema: ThingSchema })
+create(@Body({ schema: CreateThingSchema }) body: z.output<typeof CreateThingSchema>) {
+  return this.service.create(body);
+}
+```
+
+Swagger discovers the body and response schemas from these decorators and
+hoists the named definitions into `components.schemas`. Add your controller
+to its Nest module as usual; **do not edit `openapi.ts`**. The integration suite
+registers a test-only controller to prove this contract.
+
+For HTTP errors, use the normal `@ApiNotFoundResponse({ standardSchema: ... })`
+(or other status decorator). The application's global RFC 9457 filter returns
+`application/problem+json`; its one-time OpenAPI media-type normalizer reflects
+that behavior for all error statuses. No error-model registry is maintained.
 
 ## Tests and generation
 
@@ -72,7 +105,7 @@ The domain service and user-role values are shared, but GraphQL does not inherit
 
 ## Architecture and code review
 
-See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the documentation-based design rationale, Standard Schema versus GraphQL metadata boundary, error response contracts, known limitations, and testing strategy. Oxlint enforces **no nested ternary operators**.
+See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the documented NestJS controller-decorator pattern, protocol separation, generic RFC 9457 media mapping, known limitations, and testing strategy. Oxlint enforces **no nested ternary operators**.
 
 ## Customisation
 

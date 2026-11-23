@@ -1,11 +1,42 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import request from 'supertest';
-import type { INestApplication } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Post,
+  SerializeOptions,
+  type INestApplication,
+} from '@nestjs/common';
+import { ApiCreatedResponse } from '@nestjs/swagger';
+import { z } from 'zod';
 import { Test } from '@nestjs/testing';
 import { AppModule } from '../src/app.module.js';
 import { configureApp } from '../src/openapi.js';
 import { UserSchema, UsersResultSchema } from '../src/users/users.schema.js';
 import { UserConflictProblemSchema, UserNotFoundProblemSchema, ValidationProblemSchema } from '../src/problems/problem.schema.js';
+
+/**
+ * A controller introduced only by this test. It has no production registration
+ * in `openapi.ts`, proving Swagger discovers new Zod models automatically.
+ */
+const ProbeInputSchema = z.object({
+  name: z.string().min(3),
+}).meta({ id: 'ProbeInput' });
+
+const ProbeOutputSchema = z.object({
+  name: z.string(),
+  accepted: z.boolean(),
+}).meta({ id: 'ProbeOutput' });
+
+@Controller('_schema-discovery')
+class SchemaDiscoveryController {
+  @Post()
+  @ApiCreatedResponse({ standardSchema: ProbeOutputSchema })
+  @SerializeOptions({ schema: ProbeOutputSchema })
+  create(@Body({ schema: ProbeInputSchema }) input: z.output<typeof ProbeInputSchema>) {
+    return { name: input.name, accepted: true, internalOnly: 'must not be sent' };
+  }
+}
 
 const EXISTING = '00000000-0000-4000-8000-000000000001';
 const MISSING = '00000000-0000-4000-8000-000000000099';
@@ -14,7 +45,7 @@ let baseUrl: string;
 let document: ReturnType<typeof configureApp>;
 
 beforeAll(async () => {
-  const mod = await Test.createTestingModule({ imports: [AppModule] }).compile();
+  const mod = await Test.createTestingModule({ imports: [AppModule], controllers: [SchemaDiscoveryController] }).compile();
   app = mod.createNestApplication();
   document = configureApp(app);
   await app.listen(0, '127.0.0.1');
@@ -65,6 +96,33 @@ describe('HTTP & OpenAPI 3.2', () => {
     expect(res.headers.get('content-type')).toMatch(/application\/problem\+json/);
     expect(ValidationProblemSchema.safeParse(await res.json()).success).toBe(true);
   });
+  it('auto-discovers new request and response models from controller decorators', async () => {
+    const response = await request(app.getHttpServer()).get('/openapi-json').expect(200);
+    const operation = response.body.paths['/_schema-discovery'].post;
+
+    expect(operation.requestBody.content['application/json'].schema.$ref)
+      .toBe('#/components/schemas/ProbeInput');
+    expect(operation.responses['201'].content['application/json'].schema.$ref)
+      .toBe('#/components/schemas/ProbeOutput');
+    expect(response.body.components.schemas.ProbeInput).toBeDefined();
+    expect(response.body.components.schemas.ProbeOutput).toBeDefined();
+
+    const created = await request(app.getHttpServer())
+      .post('/_schema-discovery')
+      .send({ name: 'New feature' })
+      .expect(201);
+    expect(created.body).toEqual({ name: 'New feature', accepted: true });
+  });
+
+  it('validates newly added controller bodies without touching app bootstrap', async () => {
+    const result = await request(app.getHttpServer())
+      .post('/_schema-discovery')
+      .send({ name: '' })
+      .expect(422);
+    expect(ValidationProblemSchema.safeParse(result.body).success).toBe(true);
+    expect(result.headers['content-type']).toMatch(/application\\/problem\\+json/);
+  });
+
   it('documents QUERY, reusable component refs, and problem media types', async () => {
     const res = await request(app.getHttpServer()).get('/openapi-json').expect(200);
     expect(res.body.openapi).toBe('3.2.0');
@@ -73,6 +131,15 @@ describe('HTTP & OpenAPI 3.2', () => {
     expect(methods?.query?.requestBody?.content?.['application/json']).toBeDefined();
     expect(methods?.query?.responses?.['200']?.content?.['application/json']?.schema?.$ref).toBe('#/components/schemas/UsersResult');
     expect(methods?.query?.responses?.['422']?.content?.['application/problem+json']?.schema?.$ref).toBe('#/components/schemas/ValidationProblem');
+    expect(methods?.query?.responses?.['422']?.content?.['application/json']).toBeUndefined();
+    expect(res.body.components.schemas.ValidationProblem).toBeDefined();
+    expect(res.body.components.schemas.ValidationIssue).toBeDefined();
+    expect(res.body.paths['/users/{id}'].get.responses['404'].content['application/problem+json'].schema.$ref)
+      .toBe('#/components/schemas/UserNotFoundProblem');
+    expect(res.body.paths['/users'].post.responses['409'].content['application/problem+json'].schema.$ref)
+      .toBe('#/components/schemas/UserConflictProblem');
+    expect(res.body.paths['/users'].post.responses['500'].content['application/problem+json'].schema.$ref)
+      .toBe('#/components/schemas/InternalProblem');
     for (const [name, schema] of Object.entries(res.body.components.schemas as Record<string, unknown>)) {
       expect(schema, `component ${name} must be populated`).toBeTruthy();
     }

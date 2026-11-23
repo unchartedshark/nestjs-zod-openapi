@@ -1,6 +1,24 @@
-import { Body, Controller, Get, HttpCode, Inject, Param, Post, QueryMethod } from '@nestjs/common';
-import { ApiOperation, ApiTags } from '@nestjs/swagger';
-import { ApiProblem, ApiZodResponse } from '../problems/api-response.decorator.js';
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  Inject,
+  Param,
+  Post,
+  QueryMethod,
+  SerializeOptions,
+} from '@nestjs/common';
+import {
+  ApiConflictResponse,
+  ApiCreatedResponse,
+  ApiInternalServerErrorResponse,
+  ApiNotFoundResponse,
+  ApiOkResponse,
+  ApiOperation,
+  ApiTags,
+  ApiUnprocessableEntityResponse,
+} from '@nestjs/swagger';
 import {
   InternalProblemSchema,
   UserConflictProblemSchema,
@@ -19,31 +37,51 @@ import {
 import { UsersService } from './users.service.js';
 
 /**
- * REST adapter for the same mocked service used by GraphQL.
+ * REST adapter for the mocked user service.
  *
- * Parameter decorators describe input Standard Schemas; response decorators
- * install runtime Zod serialization and named OpenAPI component references.
+ * Native Nest decorators declare request validation, response serialization
+ * and OpenAPI metadata. The Swagger Standard Schema converter automatically
+ * registers named component schemas referenced by these decorators.
+ *
+ * Adding endpoints or models never requires updating the OpenAPI bootstrap.
  */
 @ApiTags('Users')
 @Controller('users')
-@ApiProblem(500, InternalProblemSchema, 'Unexpected server failure')
+@ApiInternalServerErrorResponse({
+  description: 'Unexpected server failure',
+  standardSchema: InternalProblemSchema,
+})
 export class UsersController {
   constructor(@Inject(UsersService) private readonly users: UsersService) {}
 
   @Get(':id')
   @ApiOperation({ operationId: 'findUser', summary: 'Fetch a mocked user' })
-  @ApiZodResponse(200, UserSchema)
-  @ApiProblem(422, ValidationProblemSchema, 'Invalid identifier')
-  @ApiProblem(404, UserNotFoundProblemSchema, 'No such user')
+  @ApiOkResponse({ standardSchema: UserSchema })
+  @ApiUnprocessableEntityResponse({
+    description: 'Invalid identifier',
+    standardSchema: ValidationProblemSchema,
+  })
+  @ApiNotFoundResponse({
+    description: 'No such user',
+    standardSchema: UserNotFoundProblemSchema,
+  })
+  @SerializeOptions({ schema: UserSchema })
   findOne(@Param('id', { schema: UserIdSchema }) id: string) {
     return this.users.findOne(id);
   }
 
   @Post()
   @ApiOperation({ operationId: 'createUser', summary: 'Create a synthetic user' })
-  @ApiZodResponse(201, UserSchema)
-  @ApiProblem(422, ValidationProblemSchema, 'Invalid user')
-  @ApiProblem(409, UserConflictProblemSchema, 'Email already exists')
+  @ApiCreatedResponse({ standardSchema: UserSchema })
+  @ApiUnprocessableEntityResponse({
+    description: 'Invalid user',
+    standardSchema: ValidationProblemSchema,
+  })
+  @ApiConflictResponse({
+    description: 'Email already exists',
+    standardSchema: UserConflictProblemSchema,
+  })
+  @SerializeOptions({ schema: UserSchema })
   create(@Body({ schema: CreateUserSchema }) input: CreateUser) {
     return this.users.create(input);
   }
@@ -55,8 +93,12 @@ export class UsersController {
     summary: 'Read-only structured search using HTTP QUERY',
     description: 'RFC 10008 QUERY carries read-only search criteria in a JSON request body.',
   })
-  @ApiZodResponse(200, UsersResultSchema)
-  @ApiProblem(422, ValidationProblemSchema, 'Invalid search criteria')
+  @ApiOkResponse({ standardSchema: UsersResultSchema })
+  @ApiUnprocessableEntityResponse({
+    description: 'Invalid search criteria',
+    standardSchema: ValidationProblemSchema,
+  })
+  @SerializeOptions({ schema: UsersResultSchema })
   search(@Body({ schema: SearchUsersSchema }) input: SearchUsers) {
     return this.users.search(input);
   }

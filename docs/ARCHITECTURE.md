@@ -9,13 +9,33 @@ The example demonstrates a single NestJS application exposing **REST and GraphQL
 | Request validation | Native `StandardSchemaValidationPipe` with `@Body({ schema })` and `@Param(..., { schema })` | No DTO class or class-validator duplication |
 | REST serialization | `StandardSchemaSerializerInterceptor` plus `SerializeOptions` | Ensures service-only fields don't leak |
 | API documentation | SwaggerModule/OpenAPI 3.2 with `zod-openapi` converter | HTTP QUERY needs OpenAPI 3.2 |
-| Reusable components | `schema.meta({ id })`, registered under `components.schemas` | Named `$ref` models, no anonymous response schemas |
+| Reusable components | `schema.meta({ id })` + `@ApiResponse({ standardSchema })` | Swagger discovers and registers named `$ref` components; no central list |
 | API reference | Scalar at `/reference` | Consumes the generated `/openapi-json` |
 | GraphQL | Nest GraphQL code-first decorators | Needed for GraphQL SDL and type metadata |
-| GraphQL runtime validation | Small adapter reading `~standard.validate` | Lets resolver arguments use the same Zod contracts |
 | Domain errors | Framework-independent errors + transport-aware Nest filter | REST gets RFC 9457; GraphQL gets `extensions.code` |
 | Client fixtures | Orval 8 + Faker from the generated spec | Detects disagreements between Zod and OpenAPI |
 | CI | Node 24 + TypeScript + Oxlint + Vitest | Supports HTTP QUERY and checks source code conventions |
+
+## The NestJS controller decorator contract
+
+Swagger discovers request schemas from `@Body({ schema })`, `@Param(..., { schema })`
+and related Nest decorators. Responses use Nest's documented
+`@ApiOkResponse({ standardSchema: ModelSchema })` (or the status-specific
+alternative) plus `@SerializeOptions({ schema: ModelSchema })` for HTTP runtime
+serialization. `zod-openapi` is configured once as a `standardSchemaConverter`,
+and Swagger automatically merges its named schema components.
+
+**No feature imports, manual component registration, model arrays, or
+schema-by-schema changes to `openapi.ts`.** New controllers are added to their
+feature modules as usual. An integration-test-only controller deliberately adds
+two new named models and verifies the OpenAPI document discovers them.
+
+The global REST exception filter always returns RFC 9457 Problem Details for
+HTTP 4xx/5xx responses. Swagger's Standard Schema response integration defaults
+the media type to `application/json`, regardless of the response status. The
+single generic `useProblemMediaType` step aligns all generated HTTP error
+responses to `application/problem+json`. It does **not** register or enumerate
+any schemas and needs no edits when new endpoints or errors are introduced.
 
 ## Separation of REST and GraphQL schemas
 
@@ -41,7 +61,7 @@ The `https://example.test/problems/...` values are placeholder *identifiers*, no
 
 ## Test boundaries
 
-The integration suite checks real NestJS REST and GraphQL requests, HTTP QUERY, Zod sanitization, named RFC 9457 models, OpenAPI `$ref` resolution, GraphQL enum metadata, native input type validation, domain errors and GraphQL defaults. Orval generation is performed before tests, and generated Faker responses are reparsed by the canonical Zod schemas.
+The integration suite checks real NestJS REST and GraphQL requests, HTTP QUERY, Zod sanitization, named RFC 9457 models, automatic controller-driven OpenAPI `$ref` resolution, GraphQL enum metadata, native input type validation, domain errors and GraphQL defaults. Orval generation is performed before tests, and generated Faker responses are reparsed by the canonical Zod schemas.
 
 **Not claimed:** live browser UI testing of Scalar, support of HTTP QUERY across every CDN/proxy, or production database semantics. The example is intentionally service-only.
 

@@ -44,13 +44,5 @@ export const InternalProblemSchema = BaseProblem.extend({
   status: z.literal(500),
 }).meta({ id: 'InternalProblem', description: 'Unexpected server-side failure.' });
 
-export const documentedSchemas = [
-  ProblemDetailsSchema,
-  ValidationIssueSchema,
-  ValidationProblemSchema,
-  UserNotFoundProblemSchema,
-  UserConflictProblemSchema,
-  InternalProblemSchema,
-];
 
 export type ValidationIssue = z.output<typeof ValidationIssueSchema>;
