@@ -15,7 +15,8 @@
     "generate:client": "orval --config orval.config.ts",
     "generate": "npm run openapi:export && npm run generate:client",
     "test": "vitest run",
-    "verify": "npm run generate && npm run typecheck && npm run test && npm run build"
+    "verify": "npm run generate && npm run lint && npm run typecheck && npm run test && npm run build",
+    "lint": "oxlint --deny-warnings src scripts test orval.config.ts vitest.config.ts"
   },
   "dependencies": {
     "@apollo/server": "^5.0.0",
@@ -44,6 +45,7 @@
     "typescript": "^6.0.0",
     "vitest": "^4.0.0",
     "@swc/core": "^1.13.0",
-    "unplugin-swc": "^1.5.1"
+    "unplugin-swc": "^1.5.1",
+    "oxlint": "^1.94.0"
   }
 }

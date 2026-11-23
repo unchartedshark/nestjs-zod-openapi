@@ -1,0 +1,10 @@
+{
+  "rules": {
+    "no-nested-ternary": "error"
+  },
+  "ignorePatterns": [
+    "src/generated/**",
+    "dist/**",
+    "coverage/**"
+  ]
+}
