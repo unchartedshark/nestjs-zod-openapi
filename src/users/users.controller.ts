@@ -1,4 +1,3 @@
-import { AllowAnonymous } from '@thallesp/nestjs-better-auth';
 import {
   Body,
   Controller,
@@ -46,7 +45,6 @@ import { UsersService } from './users.service.js';
  *
  * Adding endpoints or models never requires updating the OpenAPI bootstrap.
  */
-@AllowAnonymous()
 @ApiTags('Users')
 @Controller('users')
 @ApiInternalServerErrorResponse({

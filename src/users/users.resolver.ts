@@ -1,5 +1,4 @@
 import { Inject } from '@nestjs/common';
-import { AllowAnonymous } from '@thallesp/nestjs-better-auth';
 import { Args, ID, Mutation, Query, Resolver } from '@nestjs/graphql';
 import {
   GraphQLCreateUserInput,
@@ -16,7 +15,6 @@ import { UsersService } from './users.service.js';
  * own argument types and serializes fields against its code-first schema.
  * Service-thrown domain errors are converted to GraphQL extensions globally.
  */
-@AllowAnonymous()
 @Resolver(() => GraphQLUser)
 export class UsersResolver {
   constructor(@Inject(UsersService) private readonly users: UsersService) {}

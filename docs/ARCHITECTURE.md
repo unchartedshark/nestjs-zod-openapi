@@ -44,9 +44,10 @@ any schemas and needs no edits when new endpoints or errors are introduced.
 
 Better Auth's admin plugin provides the persistent `user.role` field.
 `@thallesp/nestjs-better-auth` supplies the Nest `AuthGuard` and
-`@Roles(['admin'])` decorator; we do not duplicate them. The guard is
-global by default, while the existing mock demo controllers and resolvers
-are deliberately `@AllowAnonymous()`. New routes default to secure.
+`@Roles(['admin'])` decorator; we do not duplicate them. The example opts out of the integration's global guard and uses
+`@UseGuards(AuthGuard)` only on the protected endpoint. All existing demo
+controllers and GraphQL resolvers remain public; production applications may
+choose a global guard and `@AllowAnonymous()` instead.
 
 The admin-only REST operation advertises a cookie-based security requirement
 via `@ApiCookieAuth()` and the one-time

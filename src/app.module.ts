@@ -8,7 +8,7 @@ import { UsersModule } from './users/users.module.js';
 
 @Module({
   imports: [
-    AuthModule.forRoot({ auth }),
+    AuthModule.forRoot({ auth, disableGlobalAuthGuard: true }),
     GraphQLModule.forRoot<ApolloDriverConfig>({
       driver: ApolloDriver,
       autoSchemaFile: true,
