@@ -1,4 +1,5 @@
 name: Bootstrap updated npm lockfile
+# Retry after the admin integration test was added.
 
 on:
   push:
