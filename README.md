@@ -59,15 +59,16 @@ orval.config.ts
 ## Minimal Better Auth admin-only route
 
 The community-supported `@thallesp/nestjs-better-auth` module mounts
-Better Auth at `/api/auth/*`. The global guard is deliberately disabled in this minimal example; only the
-admin endpoint applies `@UseGuards(AuthGuard)`. Existing REST and GraphQL
-examples remain unchanged and public. The admin controller uses
+Better Auth at `/api/auth/*`. The integration installs its **global guard by default**, making newly added
+routes private unless explicitly marked `@AllowAnonymous()`. The existing mock
+REST controller and GraphQL resolver opt out at the class level. The admin
+controller uses
 `@Roles(['admin'])`, which checks Better Auth's admin-plugin system role.
 
 ```ts
 @Get('only')
 @Roles(['admin'])
-@ApiCookieAuth()
+@ApiCookieAuth('better-auth.session_token')
 only() {
   return { message: 'Admin access granted.' };
 }

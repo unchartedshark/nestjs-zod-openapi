@@ -8,11 +8,13 @@ import { UsersModule } from './users/users.module.js';
 
 @Module({
   imports: [
-    AuthModule.forRoot({ auth, disableGlobalAuthGuard: true }),
+    AuthModule.forRoot({ auth }),
     GraphQLModule.forRoot<ApolloDriverConfig>({
       driver: ApolloDriver,
       autoSchemaFile: true,
       sortSchema: true,
+      // Required by the integration's global guard for GraphQL requests.
+      context: ({ req }: { req: unknown }) => ({ req }),
       graphiql: process.env.NODE_ENV !== 'production',
     }),
     UsersModule,

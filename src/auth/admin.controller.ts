@@ -1,5 +1,5 @@
-import { Controller, Get, SerializeOptions, UseGuards } from '@nestjs/common';
-import { AuthGuard, Roles } from '@thallesp/nestjs-better-auth';
+import { Controller, Get, SerializeOptions } from '@nestjs/common';
+import { Roles } from '@thallesp/nestjs-better-auth';
 import {
   ApiCookieAuth,
   ApiForbiddenResponse,
@@ -26,7 +26,6 @@ const AdminResponseSchema = z.object({
 @ApiTags('Admin')
 export class AdminController {
   @Get('only')
-  @UseGuards(AuthGuard)
   @Roles(['admin'])
   @ApiCookieAuth('better-auth.session_token')
   @ApiOperation({ summary: 'Admin-only example', description: 'Requires a Better Auth session with the system admin role.' })
