@@ -35,7 +35,7 @@ export function createOpenApiDocument(app: INestApplication) {
     .addCookieAuth('better-auth.session_token', {
       type: 'apiKey',
       description: 'Better Auth session cookie on local HTTP; HTTPS uses a secure cookie prefix.',
-    })
+    }, 'better-auth.session_token')
     .build();
 
   const document = SwaggerModule.createDocument(app, config);
