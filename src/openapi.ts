@@ -4,35 +4,27 @@ import {
   type INestApplication,
 } from '@nestjs/common';
 import { HttpAdapterHost, Reflector } from '@nestjs/core';
-import { DocumentBuilder, SwaggerModule, type SwaggerDocumentOptions } from '@nestjs/swagger';
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { apiReference } from '@scalar/nestjs-api-reference';
-import { createSchema } from 'zod-openapi';
-import type { ZodType } from 'zod';
 import { ApiExceptionFilter } from './problems/api-exception.filter.js';
 import { mapIssuesToPointers, InputValidationError } from './problems/input-validation.error.js';
 import { useProblemMediaType } from './problems/problem-openapi.js';
 
 const OPENAPI_VERSION = '3.2.0';
 
-/** Narrow a generic Standard Schema to Zod for the shared Swagger converter. */
-function isZodSchema(schema: unknown): schema is ZodType {
-  if (!schema || typeof schema !== 'object' || !('~standard' in schema)) {
-    return false;
-  }
-  const standard = schema as { '~standard'?: { vendor?: string } };
-  return standard['~standard']?.vendor === 'zod';
-}
-
 /**
- * Builds a document from the application's controllers, not a model registry.
+ * Builds the OpenAPI specification from the application's controllers.
  *
- * Nest's Swagger explorer discovers schemas from `@Body({ schema })`,
- * `@Param(..., { schema })`, and `@ApiResponse({ standardSchema })`.
- * `zod-openapi` returns named components that Nest merges automatically.
- * No feature or schema needs to be imported or listed here.
+ * With Zod 4.2+, NestJS Swagger reads the Standard JSON Schema extension
+ * provided by Zod itself. Both request decorators (such as
+ * `@Body({ schema })`) and response decorators (such as
+ * `@ApiOkResponse({ standardSchema })`) are discovered automatically.
  *
- * @param app - The application whose controllers should be documented.
- * @returns The OpenAPI 3.2 document consumed by Scalar and Orval.
+ * No custom converter, schema list, per-feature registration or additional
+ * Zod/OpenAPI adapter is required. Named models use `z.meta({ id })`.
+ *
+ * @param app - The Nest application whose REST routes should be documented.
+ * @returns An OpenAPI 3.2 document consumed by Scalar and Orval.
  */
 export function createOpenApiDocument(app: INestApplication) {
   const config = new DocumentBuilder()
@@ -42,21 +34,7 @@ export function createOpenApiDocument(app: INestApplication) {
     .setOpenAPIVersion(OPENAPI_VERSION)
     .build();
 
-  const options: SwaggerDocumentOptions = {
-    standardSchemaConverter(schema, { schemaType }) {
-      if (!isZodSchema(schema)) {
-        return undefined;
-      }
-
-      const converted = createSchema(schema, {
-        io: schemaType,
-        openapiVersion: OPENAPI_VERSION,
-      });
-      return { schema: converted.schema, components: converted.components };
-    },
-  };
-
-  const document = SwaggerModule.createDocument(app, config, options);
+  const document = SwaggerModule.createDocument(app, config);
   useProblemMediaType(document);
   return document;
 }
@@ -64,8 +42,8 @@ export function createOpenApiDocument(app: INestApplication) {
 /**
  * Configures production and tests identically.
  *
- * REST uses Nest's Standard Schema validation/serialization; GraphQL keeps
- * native GraphQL validation and the shared domain-error exception filter.
+ * Nest handles REST Standard Schema validation and serialization. GraphQL
+ * retains its own native input validation and domain error handling.
  */
 export function configureApp(app: INestApplication) {
   app.useGlobalPipes(new StandardSchemaValidationPipe({

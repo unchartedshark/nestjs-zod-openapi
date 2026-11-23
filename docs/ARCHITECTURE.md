@@ -8,7 +8,7 @@ The example demonstrates a single NestJS application exposing **REST and GraphQL
 | --- | --- | --- |
 | Request validation | Native `StandardSchemaValidationPipe` with `@Body({ schema })` and `@Param(..., { schema })` | No DTO class or class-validator duplication |
 | REST serialization | `StandardSchemaSerializerInterceptor` plus `SerializeOptions` | Ensures service-only fields don't leak |
-| API documentation | SwaggerModule/OpenAPI 3.2 with `zod-openapi` converter | HTTP QUERY needs OpenAPI 3.2 |
+| API documentation | SwaggerModule/OpenAPI 3.2 with Zod's native Standard JSON Schema extension | HTTP QUERY needs OpenAPI 3.2 |
 | Reusable components | `schema.meta({ id })` + `@ApiResponse({ standardSchema })` | Swagger discovers and registers named `$ref` components; no central list |
 | API reference | Scalar at `/reference` | Consumes the generated `/openapi-json` |
 | GraphQL | Nest GraphQL code-first decorators | Needed for GraphQL SDL and type metadata |
@@ -22,11 +22,12 @@ Swagger discovers request schemas from `@Body({ schema })`, `@Param(..., { schem
 and related Nest decorators. Responses use Nest's documented
 `@ApiOkResponse({ standardSchema: ModelSchema })` (or the status-specific
 alternative) plus `@SerializeOptions({ schema: ModelSchema })` for HTTP runtime
-serialization. `zod-openapi` is configured once as a `standardSchemaConverter`,
-and Swagger automatically merges its named schema components.
+serialization. Zod 4.2+ implements the Standard JSON Schema extension, so
+NestJS Swagger converts the schemas automatically with **no custom converter**.
+Named definitions are merged into OpenAPI `components.schemas`.
 
 **No feature imports, manual component registration, model arrays, or
-schema-by-schema changes to `openapi.ts`.** New controllers are added to their
+schema-by-schema changes to `openapi.ts`, or a `zod-openapi` dependency.** New controllers are added to their
 feature modules as usual. An integration-test-only controller deliberately adds
 two new named models and verifies the OpenAPI document discovers them.
 

@@ -71,8 +71,10 @@ create(@Body({ schema: CreateThingSchema }) body: z.output<typeof CreateThingSch
 }
 ```
 
-Swagger discovers the body and response schemas from these decorators and
-hoists the named definitions into `components.schemas`. Add your controller
+Zod 4.2+ provides native Standard JSON Schema metadata. NestJS Swagger
+converts the request and response models from these decorators without
+`zod-openapi`, a custom converter, or a schema registry. It hoists named
+definitions into `components.schemas`. Add your controller
 to its Nest module as usual; **do not edit `openapi.ts`**. The integration suite
 registers a test-only controller to prove this contract.
 

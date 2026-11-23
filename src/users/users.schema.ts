@@ -1,4 +1,3 @@
-import 'zod-openapi';
 import { UserRole } from './users.types.js';
 import { z } from 'zod';
 

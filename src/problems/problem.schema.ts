@@ -1,4 +1,3 @@
-import 'zod-openapi';
 import { z } from 'zod';
 
 export const VALIDATION_PROBLEM_TYPE = 'https://example.test/problems/validation';
