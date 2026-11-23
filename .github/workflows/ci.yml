@@ -17,9 +17,9 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: '24'
-          package-manager-cache: false
+          cache: npm
       - name: Install dependencies
-        run: npm install --no-audit --no-fund
+        run: npm ci --no-audit --no-fund
       - name: Generate actual OpenAPI document and Orval fixtures
         run: npm run generate
       - name: Lint including no nested ternaries
