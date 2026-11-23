@@ -82,7 +82,8 @@ afterAll(async () => { await app?.close(); });
 describe('HTTP & OpenAPI 3.2', () => {
   it('serves a filtered public user', async () => {
     const res = await request(app.getHttpServer()).get(`/users/${EXISTING}`).expect(200);
-    expect(UserSchema.safeParse(res.body).success).toBe(true);
+    expect(res.body.createdAt).toBe('2026-10-01T12:00:00.000Z');
+    expect(z.encode(UserSchema, res.body).createdAt).toBeInstanceOf(Date);
     expect(res.body).not.toHaveProperty('internalSecret');
   });
   it('returns the named 404 problem model', async () => {
@@ -101,7 +102,8 @@ describe('HTTP & OpenAPI 3.2', () => {
   });
   it('creates a synthetic user using request defaults', async () => {
     const res = await request(app.getHttpServer()).post('/users').send({ email: 'charlie@example.test', displayName: 'Charlie' }).expect(201);
-    expect(UserSchema.safeParse(res.body).success).toBe(true);
+    expect(z.encode(UserSchema, res.body).createdAt).toBeInstanceOf(Date);
+    expect(res.body.createdAt).toBe(new Date(res.body.createdAt).toISOString());
     expect(res.body.role).toBe('member');
   });
   it('supports HTTP QUERY with JSON body and Zod validation', async () => {
@@ -111,7 +113,8 @@ describe('HTTP & OpenAPI 3.2', () => {
     });
     expect(response.status).toBe(200);
     const body = await response.json();
-    expect(UsersResultSchema.safeParse(body).success).toBe(true);
+    expect(z.encode(UsersResultSchema, body).users[0].createdAt).toBeInstanceOf(Date);
+    expect(body.users[0].createdAt).toBe('2026-10-01T12:00:00.000Z');
     expect((body as { total: number }).total).toBe(1);
   });
   it('rejects invalid QUERY criteria with RFC 9457', async () => {
@@ -175,6 +178,10 @@ describe('HTTP & OpenAPI 3.2', () => {
     expect(methods?.query?.responses?.['200']?.content?.['application/json']?.schema?.$ref).toBe('#/components/schemas/UsersResult');
     expect(methods?.query?.responses?.['422']?.content?.['application/problem+json']?.schema?.$ref).toBe('#/components/schemas/ValidationProblem');
     expect(methods?.query?.responses?.['422']?.content?.['application/json']).toBeUndefined();
+    expect(res.body.components.schemas.User.properties.createdAt).toMatchObject({
+      type: 'string',
+      format: 'date-time',
+    });
     expect(res.body.components.schemas.ValidationProblem).toBeDefined();
     expect(res.body.components.schemas.ValidationIssue).toBeDefined();
     expect(res.body.paths['/users/{id}'].get.responses['404'].content['application/problem+json'].schema.$ref)
@@ -197,9 +204,11 @@ describe('HTTP & OpenAPI 3.2', () => {
 describe('GraphQL on the same Nest app', () => {
   it('returns public user fields', async () => {
     const res = await request(app.getHttpServer()).post('/graphql')
-      .send({ query: 'query($id: ID!) { user(id: $id) { id email displayName role } }', variables: { id: EXISTING } });
+      .send({ query: 'query($id: ID!) { user(id: $id) { id email displayName role createdAt } }', variables: { id: EXISTING } });
     expect(res.body.errors).toBeUndefined();
-    expect(UserSchema.safeParse(res.body.data.user).success).toBe(true);
+    // GraphQL uses its own native ISO datetime scalar, not the REST codec.
+    expect(res.body.data.user.createdAt).toBe('2026-10-01T12:00:00.000Z');
+    expect(res.body.data.user.id).toBe(EXISTING);
     expect(res.body.data.user).not.toHaveProperty('internalSecret');
   });
   it('provides custom domain error extensions', async () => {

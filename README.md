@@ -38,7 +38,9 @@ src/
     users.controller.ts  # REST GET, POST, RFC 10008 QUERY
     users.resolver.ts    # GraphQL queries and mutation
     users.service.ts     # static mock data and domain errors
-    users.schema.ts      # Zod contracts for REST and OpenAPI\n    users.graphql.ts     # Native NestJS code-first GraphQL types\n    users.types.ts       # Framework-neutral role values
+    users.schema.ts      # Zod contracts for REST and OpenAPI
+    users.graphql.ts     # Native NestJS code-first GraphQL types
+    users.types.ts       # Framework-neutral role values
     users.errors.ts      # feature-specific errors extending a shared base
     users.problem.schema.ts # feature-owned Problem Details models
     users.module.ts
@@ -51,6 +53,8 @@ src/
     api-exception.filter.ts  # HTTP problem+json vs GraphQL extensions
     problem-openapi.ts      # generic RFC 9457 response media mapping
     input-validation.error.ts
+  schemas/
+    date-time.schema.ts # reusable Date -> ISO 8601 Zod codec
   openapi.ts             # single OpenAPI document generator + Scalar
 scripts/export-openapi.ts
 scripts/migrate-auth.ts
@@ -108,6 +112,33 @@ including unauthenticated (401), non-admin (403) and admin (200) access.
 This example uses a local HTTP cookie called `better-auth.session_token`.
 For HTTPS, Better Auth applies the secure cookie prefix; configure OpenAPI's
 cookie name to match your production Better Auth cookie settings.
+
+## ISO datetime response codec
+
+The UsersService keeps `createdAt` as a normal JavaScript `Date`. REST uses the
+shared `DateTimeSchema` codec in `UserSchema` to convert it to an ISO 8601 UTC
+string automatically, through Nest's built-in Standard Schema serializer.
+
+```ts
+export const DateTimeSchema = z.codec(
+  z.date(),
+  z.iso.datetime(),
+  {
+    decode: (date) => date.toISOString(),
+    encode: (isoDateTime) => new Date(isoDateTime),
+  },
+);
+```
+
+This codec's `decode` direction is deliberately **Date → ISO string**: Nest
+validates/serializes route-handler return values, and `z.decode()` is what
+that validation executes. For the inverse, use `z.encode()`. OpenAPI
+automatically describes the field as `string` with `format: date-time`,
+and Orval generates string-based clients/fixtures. Unit, HTTP and contract
+tests verify both the transformation and the generated documentation.
+
+GraphQL remains independent of Zod and uses its native
+`GraphQLISODateTime` scalar for the same service-returned `Date`.
 
 ## Adding another REST endpoint
 

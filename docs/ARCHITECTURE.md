@@ -75,6 +75,23 @@ GraphQL validates its declared types: missing required fields, invalid enum memb
 
 GraphQL response fields are constrained by its object type and the selection set; HTTP response sanitization is handled by Nest's Standard Schema serializer.
 
+## Date-to-ISO response serialization
+
+`schemas/date-time.schema.ts` defines a reusable Zod codec whose input is a
+JavaScript `Date` and whose output is an ISO 8601 UTC string. The direction is
+intentional: NestJS `StandardSchemaSerializerInterceptor` validates
+handler-returned values through `~standard.validate()`, which takes the
+codec's decoding path. No manual `.toISOString()` is needed in services or
+controllers. The inverse `z.encode(DateTimeSchema, isoString)` returns a `Date`
+for tests or consumers that need it.
+
+The OpenAPI response contains `type: string` / `format: date-time`, and
+Orval generates wire-format strings. Generated Faker responses are checked by
+encoding them through the codec before a round trip back to the wire shape.
+
+GraphQL is deliberately separate: `GraphQLISODateTime` serializes the
+service's `Date` without involving Zod.
+
 ## Why there are two TypeScript configurations
 
 Production builds use `NodeNext` so emitted ESM imports include their `.js` extensions. Orval's generated client currently uses **extensionless imports**, which are legal for bundlers but not NodeNext. The separate `tsconfig.typecheck.json` uses `moduleResolution: Bundler` strictly for full-project typechecking; it does not change the production build.

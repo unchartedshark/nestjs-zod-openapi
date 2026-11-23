@@ -7,7 +7,8 @@ import type { CreateUser, SearchUsers, User } from './users.schema.js';
  * Stateless demonstration service: no database or network dependencies.
  *
  * Seed data includes an internal-only field on purpose so transport tests can
- * demonstrate that REST Zod serialization and GraphQL field selection do not\n * expose private properties.
+ * demonstrate that REST Zod serialization and GraphQL field selection do not
+ * expose private properties.
  * `create()` generates a result but does not persist it in the seed collection.
  */
 @Injectable()
@@ -18,6 +19,7 @@ export class UsersService {
       email: 'alice@example.test',
       displayName: 'Alice',
       role: 'admin',
+      createdAt: new Date('2026-10-01T12:00:00.000Z'),
       internalSecret: 'never expose this',
     },
     {
@@ -25,6 +27,7 @@ export class UsersService {
       email: 'bob@example.test',
       displayName: 'Bob',
       role: 'member',
+      createdAt: new Date('2026-10-02T12:00:00.000Z'),
       internalSecret: 'also private',
     },
   ] as const;
@@ -59,6 +62,6 @@ export class UsersService {
       throw new UserAlreadyExistsError(input.email);
     }
 
-    return { id: randomUUID(), ...input };
+    return { id: randomUUID(), ...input, createdAt: new Date() };
   }
 }

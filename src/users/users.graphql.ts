@@ -1,5 +1,6 @@
 import {
   Field,
+  GraphQLISODateTime,
   ID,
   InputType,
   Int,
@@ -39,6 +40,10 @@ export class GraphQLUser implements User {
 
   @Field(() => UserRole)
   role!: UserRole;
+
+  // Native GraphQL datetime serialization; no Zod or Standard Schema pipe.
+  @Field(() => GraphQLISODateTime)
+  createdAt!: Date;
 }
 
 /** Response metadata for the GraphQL users query. */
