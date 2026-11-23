@@ -120,7 +120,7 @@ describe('HTTP & OpenAPI 3.2', () => {
       .send({ name: '' })
       .expect(422);
     expect(ValidationProblemSchema.safeParse(result.body).success).toBe(true);
-    expect(result.headers['content-type']).toMatch(/application\\/problem\\+json/);
+    expect(result.headers['content-type']).toContain('application/problem+json');
   });
 
   it('documents QUERY, reusable component refs, and problem media types', async () => {
