@@ -41,7 +41,9 @@ The `https://example.test/problems/...` values are placeholder *identifiers*, no
 
 The integration suite checks real NestJS REST and GraphQL requests, HTTP QUERY, Zod sanitization, named RFC 9457 models, OpenAPI `$ref` resolution, GraphQL enum metadata, domain errors and validation errors. Orval generation is performed before tests, and generated Faker responses are reparsed by the canonical Zod schemas.
 
-**Not claimed:** live browser UI testing of Scalar, support of HTTP QUERY across every CDN/proxy, production database semantics, or lockfile-reproducible dependency resolution. The example is intentionally service-only.
+**Not claimed:** live browser UI testing of Scalar, support of HTTP QUERY across every CDN/proxy, or production database semantics. The example is intentionally service-only.
+
+A committed `package-lock.json` and `npm ci` in GitHub Actions make dependency resolution reproducible; update both `package.json` and the lockfile when changing dependencies.
 
 ## References
 
