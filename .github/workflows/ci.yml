@@ -1,0 +1,31 @@
+name: Validate NestJS contracts
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+      - name: Generate real OpenAPI and Orval fixtures
+        run: npm run generate
+      - name: Typecheck source and generated client
+        run: npm run typecheck
+      - name: Test mocked service, REST, QUERY, GraphQL and OpenAPI
+        run: npm test
+      - name: Compile production app
+        run: npm run build
+      - name: Publish generated OpenAPI on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: openapi-debug
+          path: openapi.json
+          if-no-files-found: ignore
