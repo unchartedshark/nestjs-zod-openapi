@@ -28,7 +28,7 @@ export class AdminController {
   @Get('only')
   @UseGuards(AuthGuard)
   @Roles(['admin'])
-  @ApiCookieAuth()
+  @ApiCookieAuth('better-auth.session_token')
   @ApiOperation({ summary: 'Admin-only example', description: 'Requires a Better Auth session with the system admin role.' })
   @ApiOkResponse({ standardSchema: AdminResponseSchema })
   @ApiUnauthorizedResponse({ description: 'Not signed in', standardSchema: ProblemDetailsSchema })
